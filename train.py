@@ -18,7 +18,8 @@ writer = SummaryWriter(log_dir='./log')
 def train(epochs, batch_size, lr):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_loader, val_loader = cifar10_data_loader(batch_size=batch_size)
-    ood_loader = [tinyImageNet_data_loader(), *svhn_data_loader(), lsun_data_loader()]
+    # ood_loader = [tinyImageNet_data_loader(), *svhn_data_loader(), lsun_data_loader()]
+    ood_loader = [lsun_data_loader()]
     # add ood loader
     
 
@@ -52,7 +53,7 @@ def train(epochs, batch_size, lr):
             rloss = recon_loss(x, recon)
             sloss = sim_loss(z, y)
             
-            loss = rloss + sloss
+            loss = rloss # + sloss
 
             loss.backward()
             optimizer.step()
