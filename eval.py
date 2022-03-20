@@ -48,6 +48,9 @@ def auc(conf, label):
 
 
 def compute_all_metrics(conf, label, file_path=None, verbose=True):
+    # normalize conf
+    conf = (conf - np.min(conf)) / (np.max(conf) - np.min(conf))
+    
     recall = 0.95
     fpr, thresh = fpr_recall(conf, label, recall)
     auroc, aupr_in, aupr_out = auc(conf, label)

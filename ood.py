@@ -11,5 +11,5 @@ class ReconPostProcessor:
         data: [N, 3, H, W]
         """
         z, recon = net(data)
-        conf = torch.abs(recon - data).sum(dim=(1, 2, 3))
+        conf = F.mse_loss(data, recon, reduction='none').mean((1, 2, 3))
         return conf

@@ -21,8 +21,8 @@ class MyDataset(Dataset):
             self.transform = transforms.Compose([
 
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+                # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                #                      std=[0.229, 0.224, 0.225])
             ])
         else:
             self.transform = transforms.Compose([
@@ -72,8 +72,8 @@ def cifar10_data_loader(folder='./data/cifar10_data', batch_size=64):
     transform = transforms.Compose([
         transforms.Resize([32, 32]),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                      std=[0.229, 0.224, 0.225])
     ])
     train_set = CIFAR10(folder, train=True, download=True, transform=transform)
     test_set = CIFAR10(folder, train=False, download=True, transform=transform)
@@ -89,13 +89,13 @@ def cifar100_data_loader(folder='./data/cifar100_data', batch_size=64):
         transforms.RandomHorizontalFlip(),
         transforms.RandomCrop(32, 4),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                      std=[0.229, 0.224, 0.225])
     ])
     test_transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                             std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+        #                      std=[0.229, 0.224, 0.225])
     ])
     train_set = CIFAR100(folder, train=True, download=True, transform=train_transform)
     test_set = CIFAR100(folder, train=False, download=True, transform=test_transform)
