@@ -1,10 +1,10 @@
 import tqdm
 import torch
 import torch.nn as nn
-from models import ResAE
+from models import origin_bit_model
 from torch.optim import Adam
 from data import cifar10_data_loader, tinyImageNet_data_loader, svhn_data_loader, lsun_data_loader
-from losses import recon_loss, sim_loss
+from losses import recon_loss, sim_loss, vae_loss
 from torch.optim.lr_scheduler import StepLR
 from eval import Evaluator
 from ood import ReconPostProcessor
@@ -23,8 +23,7 @@ def train(epochs, batch_size, lr):
     # add ood loader
     
 
-    # model = ResVAE()
-    model = ResAE()
+    model = origin_bit_model()(48, 3, 2) # 比特数，图像通道数，多少个bit代表一个维度
     model = model.to(device)
     # model = nn.DataParallel(model).to(device)
 
@@ -44,16 +43,13 @@ def train(epochs, batch_size, lr):
             y = y.to(device)
             model.zero_grad()
 
-            z, recon = model(x)
+            z, recon, mu, log_var = model(x)
 
 
             ############################
             # Loss Computation
             ############################
-            rloss = recon_loss(x, recon)
-            sloss = sim_loss(z, y)
-            
-            loss = rloss # + sloss
+            loss, recon_loss, kld_loss = vae_loss(x, recon, mu, log_var, 0.001)
 
             loss.backward()
             optimizer.step()
@@ -70,23 +66,21 @@ def train(epochs, batch_size, lr):
             print('Epoch : %05d | FPR@95 : %.6f | AUROC : %.6f | AUPR_IN %.6f | AUPR_OUT %.6f | Loss %.6f' \
                 % (epoch, result['FPR@95'], result['AUROC'], result['AUPR_IN'], result['AUPR_OUT'], float(loss)))
 
-        # model.eval()
-        # for x, y in tqdm.tqdm(val_loader):
-        #     x = x.float().to(device)
-        #     model.zero_grad()
+        model.eval()
+        with torch.no_grad():
+            for x, y in tqdm.tqdm(val_loader):
+                x = x.float().to(device)
 
-        #     z, recon = model(x)
-        #     loss = model.loss(recon, x)
-        #     loss.backward()
-        #     optimizer.step()
+                z, recon, mu, log_var = model(x)
+                loss = vae_loss(x, recon, mu, log_var, 0.001)
+                
+                val_loss += loss.item() / len(val_loader)
 
-        #     val_loss += loss.item() / len(val_loader)
+            if val_loss < best_loss:
+                best_loss = val_loss
+                torch.save(model.state_dict(), 'saved_models/cifar100_ae/epoch_%d_val_recon_%.6f.pth' % (epoch, val_loss))
 
-        # if val_loss < best_loss:
-        #     best_loss = val_loss
-        #     torch.save(model.state_dict(), 'saved_models/cifar100_ae/epoch_%d_val_recon_%.6f.pth' % (epoch, val_loss))
-
-        # print('Epoch : %05d | train recon loss : %.6f | val recon loss : %.6f' % (epoch, train_loss, val_loss))
+            print('Epoch : %05d | train recon loss : %.6f | val recon loss : %.6f' % (epoch, train_loss, val_loss))
 
 
 if __name__ == '__main__':

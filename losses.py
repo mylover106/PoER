@@ -4,8 +4,18 @@ import torch.nn.functional as F
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def recon_loss(input_x, recon_x):
-    mse_loss = F.mse_loss(input_x, recon_x)
+def vae_loss(x, recon, mu, log_var, kld_w):
+    
+    recons_loss = F.mse_loss(x, recon)
+    
+    kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+
+    loss = recons_loss +  kld_w * kld_loss
+    return loss, recons_loss, kld_loss
+
+
+def recon_loss(recon_x, input_x):
+    mse_loss = F.binary_cross_entropy(recon_x, input_x)
     return mse_loss
 
 def sim_loss(input_z, label):
@@ -21,4 +31,3 @@ def sim_loss(input_z, label):
     except_self_mask[list(range(batch_size)), list(range(batch_size))] = False
     loss = torch.sum(z_dis[same_label_mask]) / torch.sum(z_dis[except_self_mask])
     return loss
-    

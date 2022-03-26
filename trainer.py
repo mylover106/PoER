@@ -1,4 +1,15 @@
-from turtle import forward
+import numpy as np
+import torch
+import tqdm
+import argparse
+from torch.optim import Adamax
+from torch.optim.lr_scheduler import StepLR
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import save_image
+
+
+# Auto Encoder for Minist
+from data import mnist_data_loader, cifar10_data_loader
 
 
 def origin_bit_model():
@@ -569,3 +580,88 @@ def origin_no_bit_model():
             return recon_loss
     return ResAE
 
+
+
+def train(epoch, lr, batch_size, name):
+    import time
+    import pathlib
+    import os
+    cur_t = time.strftime('%Y-%m-%d', time.localtime())
+    log_path = pathlib.Path(f'./{name}_{cur_t}_log')
+    checkpoint_path = pathlib.Path(f'./{name}_{cur_t}_checkpoint')
+    sample_path = pathlib.Path(f'./{name}_{cur_t}_samples')
+
+    log_path.mkdir(exist_ok=True)
+    checkpoint_path.mkdir(exist_ok=True)
+    sample_path.mkdir(exist_ok=True)
+
+    writer = SummaryWriter(str(log_path))
+    os.system(f'cp ./*.py {str(log_path)}')
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = origin_bit_model()(48, 3, bit_expand=2)
+    # model = origin_no_bit_model()(48, 3)
+    model.cuda()
+
+    optimizer = Adamax(model.parameters(), lr=lr)
+    step_lr = StepLR(optimizer, 20, 0.5)
+    train_loader, val_loader = cifar10_data_loader(batch_size=batch_size)
+    batches_done = 0
+    for i in range(epoch):
+        # train_loss, val_loss = 0, 0
+        model.train()
+        for x, y in tqdm.tqdm(train_loader):
+            batches_done += 1
+            x = x.float().to(device)
+            y = y.to(device)
+            model.zero_grad()
+
+            z, recon = model(x)
+            loss = model.loss(recon, x)
+
+            loss.backward()
+            optimizer.step()
+
+            # train_loss += loss.item() / len(train_loader)
+            writer.add_scalar('loss/train', float(loss), batches_done)
+    
+
+        step_lr.step()
+
+        with torch.no_grad():
+            model.eval()
+            save_flag = True
+            for x, y in tqdm.tqdm(val_loader):
+                x = x.float().to(device)
+                y = y.to(device)
+                z, recon = model(x)  # [N, 1, 28, 28]
+                
+                if save_flag:
+                    save_image(torch.concat([x, recon], dim=0), str(sample_path / f'{i}.png'))
+                    save_flag = False
+
+                val_loss = model.loss(recon, x)
+                writer.add_scalar('loss/val', float(val_loss), batches_done)
+        
+        # save model
+        torch.save({
+            'state_dict': model.state_dict(),
+            'epoch': i,
+            'args': arg,
+            'optimizer': optimizer,
+        }, str(checkpoint_path / f'model_{i}.pth.tar'))
+            
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--name', type=str, help='the train corresponding name', default='untitled')
+    parser.add_argument('--epoch', type=int, default=1000)
+    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--lr', type=float, default=1e-3)
+    arg = parser.parse_args()
+
+    train(arg.epoch, arg.lr, arg.batch_size, arg.name)
+    
+    

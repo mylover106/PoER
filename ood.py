@@ -10,6 +10,6 @@ class ReconPostProcessor:
         """ return the ood confidence
         data: [N, 3, H, W]
         """
-        z, recon = net(data)
+        z, recon, *t = net(data)
         conf = 1 - F.mse_loss(data, recon, reduction='none').mean((1, 2, 3))
         return conf
